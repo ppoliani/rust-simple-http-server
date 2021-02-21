@@ -4,8 +4,9 @@ use std::net::TcpStream;
 use std::fs;
 use std::thread;
 use std::time::Duration;
+use simple_http_server::request::thread_pool::ThreadPool;
 
-fn handle_connect(mut stream:TcpStream) {
+fn handle_connection(mut stream:TcpStream) {
   let mut buffer = [0; 1024];
   stream.read(&mut buffer).unwrap();
 
@@ -26,16 +27,22 @@ fn handle_connect(mut stream:TcpStream) {
   ).unwrap();
 
   let response = format!("{}{}", status_line, content);
+
   stream.write(response.as_bytes()).unwrap();
   stream.flush().unwrap();
 }
 
 fn main() {
   let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+  let pool = ThreadPool::new(4);
 
   for stream in listener.incoming() {
     let stream = stream.unwrap();
 
-    handle_connect(stream);
+    pool.execute(|| {
+      handle_connection(stream);
+    });
   }
+
+  println!("Shutting down.");
 }
